@@ -6,12 +6,14 @@ from datetime import datetime
 from geopy.distance import geodesic
 
 # --- Google Sheets Setup ---
+# Access your secret exactly as pasted
 creds_dict = json.loads(st.secrets["gcp"]["service_account_json"])
 creds = Credentials.from_service_account_info(creds_dict)
 client = gspread.authorize(creds)
 
 # Open your Google Sheet
-sheet = client.open_by_url("https://docs.google.com/spreadsheets/d/1g_8yhPTc_Mecjlflnp3XMjg5QZLuCO2ogIJH5PoZZ0g/edit#gid=788082122")
+sheet_url = "https://docs.google.com/spreadsheets/d/1g_8yhPTc_Mecjlflnp3XMjg5QZLuCO2ogIJH5PoZZ0g/edit#gid=788082122"
+sheet = client.open_by_url(sheet_url)
 
 # Worksheets
 users_ws = sheet.worksheet("Users")
@@ -62,11 +64,9 @@ def auto_assign_requests():
                 min_dist = distance
                 nearest_tech = t
         if nearest_tech:
-            # Assign technician
             row_idx = requests_ws.find(r["Customer Phone"]).row
             requests_ws.update_cell(row_idx, 6, nearest_tech["Name"])
             requests_ws.update_cell(row_idx, 8, "Assigned")
-            # Mark tech as busy
             tech_row = techs_ws.find(nearest_tech["Name"]).row
             techs_ws.update_cell(tech_row, 2, "No")
 
@@ -123,7 +123,7 @@ if "user" in st.session_state and st.session_state["user"]["Role"]=="Technician"
             req_loc = (float(r["Latitude"]), float(r["Longitude"]))
             tech_loc = (lat, lng)
             distance = geodesic(req_loc, tech_loc).km
-            if distance <= 10:  # show requests within 10 km
+            if distance <= 10:
                 st.write(f"Customer: {r['Customer Phone']}, Issue: {r['Issue']}, Preferred Date: {r['Preferred Date']}, Distance: {distance:.2f} km")
                 if st.button(f"Assign to me: {r['Customer Phone']}"):
                     row_idx = requests_ws.find(r["Customer Phone"]).row
@@ -148,5 +148,4 @@ if "user" in st.session_state and st.session_state["user"]["Role"]=="Admin":
                 users_ws.update_cell(row_idx, 5, "Approved")
                 st.success(f"{u['Name']} approved!")
 
-# Placeholder for Notifications / Chatbot (can integrate later)
 st.info("Notifications and AI Chatbot integration coming soon.")
