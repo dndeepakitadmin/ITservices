@@ -3,16 +3,22 @@ import gspread
 from google.oauth2.service_account import Credentials
 
 # --- GCP Service Account & Google Sheets setup ---
-scope = ["https://www.googleapis.com/auth/spreadsheets",
-         "https://www.googleapis.com/auth/drive"]
+scope = [
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/drive"
+]
 
 creds = Credentials.from_service_account_info(st.secrets["gcp"], scopes=scope)
 client = gspread.authorize(creds)
 
-# --- Sheet References ---
-sheet_customers = client.worksheet("Customers")
-sheet_technicians = client.worksheet("Technicians")
-sheet_tickets = client.worksheet("Tickets")
+# --- Open your spreadsheet ---
+SPREADSHEET_URL = "https://docs.google.com/spreadsheets/d/1g_8yhPTc_Mecjlflnp3XMjg5QZLuCO2ogIJH5PoZZ0g/edit?gid=788082122#gid=788082122"  # <-- Replace with your actual Google Sheet URL
+spreadsheet = client.open_by_url(SPREADSHEET_URL)
+
+# --- Worksheet References ---
+sheet_customers = spreadsheet.worksheet("Customers")
+sheet_technicians = spreadsheet.worksheet("Technicians")
+sheet_tickets = spreadsheet.worksheet("Tickets")
 
 # --- Streamlit App ---
 st.title("IT Support Minimal App")
@@ -32,7 +38,8 @@ if role == "Customer":
 
     if st.button("Submit Ticket"):
         # Auto ID = next row number (starting after header)
-        next_id = len(sheet_tickets.get_all_values())
+        all_tickets = sheet_tickets.get_all_values()
+        next_id = len(all_tickets)
         sheet_tickets.append_row([
             next_id, customer_name, issue, location, device, str(preferred_date), ""
         ])
@@ -57,10 +64,13 @@ elif role == "Technician":
             claim = st.button(f"Claim Ticket {ticket['id']}", key=f"claim_{ticket['id']}")
             if claim:
                 # Update assigned_tech in the sheet
-                row_number = idx + 2  # +2 because gspread counts header row as 1
-                sheet_tickets.update_cell(row_number, 7, tech_name)
-                st.success(f"✅ Ticket {ticket['id']} claimed by {tech_name}!")
-                st.experimental_rerun()
+                # Find actual row number in the sheet (gspread counts header row as 1)
+                sheet_data = sheet_tickets.get_all_values()
+                for row_num, row in enumerate(sheet_data, start=1):
+                    if str(row[0]) == str(ticket["id"]):
+                        sheet_tickets.update_cell(row_num, 7, tech_name)
+                        st.success(f"✅ Ticket {ticket['id']} claimed by {tech_name}!")
+                        st.experimental_rerun()
     else:
         st.info("No unassigned tickets currently.")
 
