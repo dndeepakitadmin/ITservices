@@ -8,11 +8,12 @@ scope = [
     "https://www.googleapis.com/auth/drive"
 ]
 
+# Credentials from Streamlit secrets
 creds = Credentials.from_service_account_info(st.secrets["gcp"], scopes=scope)
 client = gspread.authorize(creds)
 
 # --- Open your spreadsheet ---
-SPREADSHEET_URL = "https://docs.google.com/spreadsheets/d/1g_8yhPTc_Mecjlflnp3XMjg5QZLuCO2ogIJH5PoZZ0g/edit?gid=788082122#gid=788082122"  # <-- Replace with your actual Google Sheet URL
+SPREADSHEET_URL = "YOUR_SPREADSHEET_URL_HERE"  # <-- Replace with your Google Sheet URL
 spreadsheet = client.open_by_url(SPREADSHEET_URL)
 
 # --- Worksheet References ---
@@ -59,18 +60,17 @@ elif role == "Technician":
     unassigned = [t for t in all_tickets if t["assigned_tech"] == ""]
 
     if unassigned:
-        for idx, ticket in enumerate(unassigned):
+        for ticket in unassigned:
             st.write(f"**Ticket ID:** {ticket['id']}, Issue: {ticket['issue']}, Customer: {ticket['customer_name']}")
             claim = st.button(f"Claim Ticket {ticket['id']}", key=f"claim_{ticket['id']}")
             if claim:
                 # Update assigned_tech in the sheet
-                # Find actual row number in the sheet (gspread counts header row as 1)
                 sheet_data = sheet_tickets.get_all_values()
                 for row_num, row in enumerate(sheet_data, start=1):
                     if str(row[0]) == str(ticket["id"]):
                         sheet_tickets.update_cell(row_num, 7, tech_name)
                         st.success(f"✅ Ticket {ticket['id']} claimed by {tech_name}!")
-                        st.experimental_rerun()
+                        st.info("Please refresh the page to see updated tickets.")
     else:
         st.info("No unassigned tickets currently.")
 
