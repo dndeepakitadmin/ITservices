@@ -10,7 +10,7 @@ creds = Credentials.from_service_account_info(st.secrets["gcp"], scopes=scope)
 client = gspread.authorize(creds)
 
 # --- Open Spreadsheet ---
-SPREADSHEET_ID = "https://docs.google.com/spreadsheets/d/1g_8yhPTc_Mecjlflnp3XMjg5QZLuCO2ogIJH5PoZZ0g/edit?gid=788082122#gid=788082122"
+SPREADSHEET_ID = "1g_8yhPTc_Mecjlflnp3XMjg5QZLuCO2ogIJH5PoZZ0g/edit?gid=788082122#gid=788082122"
 spreadsheet = client.open_by_key(SPREADSHEET_ID)
 sheet_customers = spreadsheet.worksheet("Customers")
 sheet_tickets = spreadsheet.worksheet("Tickets")
