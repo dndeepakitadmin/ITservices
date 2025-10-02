@@ -13,7 +13,7 @@ creds = Credentials.from_service_account_info(st.secrets["gcp"], scopes=scope)
 client = gspread.authorize(creds)
 
 # --- Open your spreadsheet ---
-SPREADSHEET_URL = "YOUR_SPREADSHEET_URL_HERE"  # <-- Replace with your Google Sheet URL
+SPREADSHEET_URL = "https://docs.google.com/spreadsheets/d/1g_8yhPTc_Mecjlflnp3XMjg5QZLuCO2ogIJH5PoZZ0g/edit?gid=788082122#gid=788082122"  # <-- Replace with your Google Sheet URL
 spreadsheet = client.open_by_url(SPREADSHEET_URL)
 
 # --- Worksheet References ---
