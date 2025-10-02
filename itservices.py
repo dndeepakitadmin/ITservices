@@ -2,56 +2,80 @@ import streamlit as st
 import gspread
 from google.oauth2.service_account import Credentials
 
-st.title("IT Services - Minimal Role-Based Test App")
-
-# --- Google Sheets Authentication ---
+# --- GCP Service Account & Google Sheets setup ---
 scope = ["https://www.googleapis.com/auth/spreadsheets",
          "https://www.googleapis.com/auth/drive"]
 
 creds = Credentials.from_service_account_info(st.secrets["gcp"], scopes=scope)
 client = gspread.authorize(creds)
 
-# --- Open your Google Sheet ---
-sheet_url = "https://docs.google.com/spreadsheets/d/1g_8yhPTc_Mecjlflnp3XMjg5QZLuCO2ogIJH5PoZZ0g/edit#gid=0"
-sheet = client.open_by_url(sheet_url)
-worksheet = sheet.sheet1
+# --- Sheet References ---
+sheet_customers = client.worksheet("Customers")
+sheet_technicians = client.worksheet("Technicians")
+sheet_tickets = client.worksheet("Tickets")
 
-# --- Role Selection ---
+# --- Streamlit App ---
+st.title("IT Support Minimal App")
+
+# Role selection (for demo purposes)
 role = st.selectbox("Select Role", ["Customer", "Technician", "Admin"])
-user_name = st.text_input("Enter your Name (for demo purposes)")
 
-# --- Fetch Sheet Data ---
-data = worksheet.get_all_records()
-
-# --- CUSTOMER VIEW ---
+# --- CUSTOMER FLOW ---
 if role == "Customer":
-    st.subheader("Submit a New Issue")
-    with st.form("customer_form"):
-        issue = st.text_area("Describe your issue")
-        submitted = st.form_submit_button("Submit Issue")
-        if submitted:
-            new_row = [user_name, "Customer", "", "", issue]
-            worksheet.append_row(new_row)
-            st.success("✅ Issue submitted successfully!")
+    st.header("Submit a Ticket")
+    customer_name = st.text_input("Your Name")
+    phone = st.text_input("Phone Number")
+    issue = st.text_area("Issue Description")
+    location = st.text_input("Location")
+    device = st.text_input("Device")
+    preferred_date = st.date_input("Preferred Date")
 
-    st.subheader("Your Submitted Tickets")
-    user_tickets = [row for row in data if row["name"] == user_name and row["role"] == "Customer"]
-    st.dataframe(user_tickets)
+    if st.button("Submit Ticket"):
+        # Auto ID = next row number (starting after header)
+        next_id = len(sheet_tickets.get_all_values())
+        sheet_tickets.append_row([
+            next_id, customer_name, issue, location, device, str(preferred_date), ""
+        ])
+        st.success("✅ Ticket submitted successfully!")
 
-# --- TECHNICIAN VIEW ---
+    # View your tickets
+    st.subheader("Your Tickets")
+    all_tickets = sheet_tickets.get_all_records()
+    my_tickets = [t for t in all_tickets if t["customer_name"] == customer_name]
+    st.table(my_tickets)
+
+# --- TECHNICIAN FLOW ---
 elif role == "Technician":
-    st.subheader("Available Tickets to Claim")
-    unassigned_tickets = [row for row in data if row["role"] == "Customer" and row["phone"] == ""]
-    st.dataframe(unassigned_tickets)
+    st.header("Unassigned Tickets")
+    tech_name = st.text_input("Your Name")
+    all_tickets = sheet_tickets.get_all_records()
+    unassigned = [t for t in all_tickets if t["assigned_tech"] == ""]
 
-    st.subheader("Claim a Ticket")
-    ticket_index = st.number_input("Enter row number to claim (as shown above)", min_value=1, step=1)
-    if st.button("Claim Ticket"):
-        if 0 < ticket_index <= len(data):
-            worksheet.update_cell(ticket_index + 1, 3, user_name)  # Assign technician name in 'role' column
-            st.success(f"✅ Ticket #{ticket_index} claimed!")
+    if unassigned:
+        for idx, ticket in enumerate(unassigned):
+            st.write(f"**Ticket ID:** {ticket['id']}, Issue: {ticket['issue']}, Customer: {ticket['customer_name']}")
+            claim = st.button(f"Claim Ticket {ticket['id']}", key=f"claim_{ticket['id']}")
+            if claim:
+                # Update assigned_tech in the sheet
+                row_number = idx + 2  # +2 because gspread counts header row as 1
+                sheet_tickets.update_cell(row_number, 7, tech_name)
+                st.success(f"✅ Ticket {ticket['id']} claimed by {tech_name}!")
+                st.experimental_rerun()
+    else:
+        st.info("No unassigned tickets currently.")
 
-# --- ADMIN VIEW ---
+# --- ADMIN FLOW ---
 elif role == "Admin":
-    st.subheader("All Tickets")
-    st.dataframe(data)
+    st.header("All Sheets Overview")
+
+    st.subheader("Customers")
+    customers_data = sheet_customers.get_all_records()
+    st.table(customers_data)
+
+    st.subheader("Technicians")
+    tech_data = sheet_technicians.get_all_records()
+    st.table(tech_data)
+
+    st.subheader("Tickets")
+    tickets_data = sheet_tickets.get_all_records()
+    st.table(tickets_data)
